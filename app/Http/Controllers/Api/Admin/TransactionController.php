@@ -28,4 +28,43 @@ class TransactionController extends Controller
             'data' => $transaction,
         ]);
     }
+
+    public function scanTicket(Request $request)
+    {
+        $request->validate([
+            'transaction_code' => 'required|string'
+        ]);
+
+        // Cari transaksi berdasarkan kode dari QR Code
+        $transaction = Transaction::with(['user', 'yogaClass'])
+                        ->where('transaction_code', $request->transaction_code)
+                        ->first();
+
+        if (!$transaction) {
+            return response()->json(['success' => false, 'message' => 'Tiket tidak ditemukan atau kode tidak valid.'], 404);
+        }
+
+        if ($transaction->status === 'pending') {
+            return response()->json(['success' => false, 'message' => 'Gagal! Tiket belum dibayar atau diverifikasi oleh Admin.'], 400);
+        }
+
+        if ($transaction->status === 'attended') {
+            return response()->json(['success' => false, 'message' => 'Gagal! Tiket ini sudah digunakan untuk check-in sebelumnya.'], 400);
+        }
+
+        // Update status menjadi attended (hadir)
+        $transaction->update([
+            'status' => 'attended'
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Check-in berhasil!',
+            'data' => [
+                'customer_name' => $transaction->user->name,
+                'class_name' => $transaction->yogaClass->name,
+                'transaction_code' => $transaction->transaction_code
+            ]
+        ]);
+    }
 }

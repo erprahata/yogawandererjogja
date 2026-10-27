@@ -33,6 +33,9 @@ Route::middleware('auth:sanctum')->group(function () {
         // Verifikasi Pembayaran
         Route::post('/transactions/{id}/verify', [TransactionController::class, 'verifyPayment']);
 
+        // Scan QR Presensi / Check-in
+        Route::post('/tickets/scan', [TransactionController::class, 'scanTicket']);
+
         // Update & Manajemen CMS
         Route::post('/cms-content/update', [CmsController::class, 'update']);
         Route::post('/cms-content/upload-hero', [CmsController::class, 'uploadHero']);
