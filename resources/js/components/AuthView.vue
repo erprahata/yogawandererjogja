@@ -32,25 +32,33 @@
                         </div>
                         <input v-model="form.password" type="password" required class="w-full bg-white/20 border border-white/30 text-white rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-white/50 placeholder-gray-300 transition" placeholder="••••••••">
                     </div>
-                    <button type="submit" class="w-full bg-white text-brand font-bold py-3.5 rounded-xl hover:bg-gray-100 transition shadow-lg mt-4">Masuk</button>
+                    <button type="submit" :disabled="isLoading" class="w-full bg-white text-brand font-bold py-3.5 rounded-xl hover:bg-gray-100 disabled:opacity-50 transition shadow-lg mt-4">
+                        {{ isLoading ? 'Memproses...' : 'Masuk' }}
+                    </button>
                     <p class="text-center text-sm text-gray-300 mt-6">Belum punya akun? <a @click.prevent="mode = 'register'" href="#" class="text-white font-bold hover:underline">Daftar sekarang</a></p>
                 </form>
 
                 <!-- Form Register -->
                 <form v-if="mode === 'register'" @submit.prevent="handleRegister" class="space-y-5">
                     <div>
-                        <label class="block text-white text-sm font-medium mb-2">Nama Lengkap</label>
-                        <input v-model="form.name" type="text" required class="w-full bg-white/20 border border-white/30 text-white rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-white/50 placeholder-gray-300 transition" placeholder="Nama Anda">
+                        <label class="block text-white text-sm font-medium mb-1">Nama Lengkap</label>
+                        <input v-model="form.name" type="text" required class="w-full bg-white/20 border border-white/30 text-white rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-white/50 placeholder-gray-300 transition" placeholder="Nama Anda">
                     </div>
                     <div>
-                        <label class="block text-white text-sm font-medium mb-2">Email</label>
-                        <input v-model="form.email" type="email" required class="w-full bg-white/20 border border-white/30 text-white rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-white/50 placeholder-gray-300 transition" placeholder="email@contoh.com">
+                        <label class="block text-white text-sm font-medium mb-1">No. HP / WhatsApp</label>
+                        <input v-model="form.phone_number" type="tel" required class="w-full bg-white/20 border border-white/30 text-white rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-white/50 placeholder-gray-300 transition" placeholder="0812xxxxxx">
                     </div>
                     <div>
-                        <label class="block text-white text-sm font-medium mb-2">Password</label>
-                        <input v-model="form.password" type="password" required class="w-full bg-white/20 border border-white/30 text-white rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-white/50 placeholder-gray-300 transition" placeholder="Minimal 8 karakter">
+                        <label class="block text-white text-sm font-medium mb-1">Email</label>
+                        <input v-model="form.email" type="email" required class="w-full bg-white/20 border border-white/30 text-white rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-white/50 placeholder-gray-300 transition" placeholder="email@contoh.com">
                     </div>
-                    <button type="submit" class="w-full bg-white text-brand font-bold py-3.5 rounded-xl hover:bg-gray-100 transition shadow-lg mt-4">Daftar Akun</button>
+                    <div>
+                        <label class="block text-white text-sm font-medium mb-1">Password</label>
+                        <input v-model="form.password" type="password" required class="w-full bg-white/20 border border-white/30 text-white rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-white/50 placeholder-gray-300 transition" placeholder="Minimal 6 karakter">
+                    </div>
+                    <button type="submit" :disabled="isLoading" class="w-full bg-white text-brand font-bold py-3.5 rounded-xl hover:bg-gray-100 disabled:opacity-50 transition shadow-lg mt-4">
+                        {{ isLoading ? 'Mendaftar...' : 'Daftar Akun' }}
+                    </button>
                     <p class="text-center text-sm text-gray-300 mt-6">Sudah punya akun? <a @click.prevent="mode = 'login'" href="#" class="text-white font-bold hover:underline">Masuk di sini</a></p>
                 </form>
 
@@ -81,9 +89,11 @@ import axios from 'axios';
 
 const router = useRouter();
 const mode = ref('login'); // 'login', 'register', 'forgot'
+const isLoading = ref(false);
 
 const form = ref({
     name: '',
+    phone_number: '',
     email: '',
     password: ''
 });
@@ -95,29 +105,49 @@ const authModeText = computed(() => {
 });
 
 const handleLogin = async () => {
+    isLoading.value = true;
     try {
         const response = await axios.post('/api/login', {
             email: form.value.email,
             password: form.value.password
         });
         
-        // Simpan token (bisa menggunakan localStorage/Pinia)
         localStorage.setItem('auth_token', response.data.access_token);
         axios.defaults.headers.common['Authorization'] = `Bearer ${response.data.access_token}`;
         
-        // Redirect berdasarkan role
         if (response.data.user.role === 'admin') {
             router.push('/admin');
         } else {
-            window.location.href = '/'; // Balik ke Landing Page
+            window.location.href = '/'; 
         }
     } catch (error) {
         alert('Login gagal. Periksa kembali email dan password Anda.');
+    } finally {
+        isLoading.value = false;
     }
 };
 
 const handleRegister = async () => {
-    alert('Fungsi register dipicu. Endpoint API register belum disiapkan di backend.');
+    isLoading.value = true;
+    try {
+        const response = await axios.post('/api/register', {
+            name: form.value.name,
+            phone_number: form.value.phone_number,
+            email: form.value.email,
+            password: form.value.password
+        });
+        
+        // Auto-login setelah registrasi sukses
+        localStorage.setItem('auth_token', response.data.access_token);
+        axios.defaults.headers.common['Authorization'] = `Bearer ${response.data.access_token}`;
+        
+        alert('Registrasi berhasil! Anda akan dialihkan.');
+        window.location.href = '/'; // Arahkan kembali ke Landing Page
+    } catch (error) {
+        alert(error.response?.data?.message || "Registrasi gagal. Pastikan email belum terdaftar.");
+    } finally {
+        isLoading.value = false;
+    }
 };
 
 const handleForgot = async () => {
@@ -127,6 +157,7 @@ const handleForgot = async () => {
 </script>
 
 <style scoped>
+/* Bagian style tidak ada yang diubah */
 .animate-fade-in-up {
     animation: fadeInUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
