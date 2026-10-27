@@ -19,6 +19,34 @@
             </div>
         </div>
 
+        <!-- Area Scanner QR Code Baru -->
+        <div class="mb-6 bg-teal-50 border border-teal-200 rounded-xl p-5 flex flex-col md:flex-row items-center gap-4">
+            <div class="flex-grow w-full">
+                <label class="block text-sm font-bold text-teal-900 mb-1">Scan QR Code Tiket</label>
+                <p class="text-xs text-teal-700">Arahkan kursor ke kolom ini, lalu scan QR Code peserta (atau ketik manual No. Transaksi lalu Enter).</p>
+            </div>
+            <div class="flex w-full md:w-auto shadow-sm rounded-lg">
+                <input
+                    id="scanInput"
+                    type="text"
+                    v-model="scanCode"
+                    @keyup.enter="processScan"
+                    placeholder="Ketik/Scan YWJ-..."
+                    class="border border-teal-300 rounded-l-lg px-4 py-2.5 focus:ring-teal-600 focus:border-teal-600 outline-none w-full md:w-64 text-sm font-mono uppercase"
+                    :disabled="isScanning"
+                />
+                <button
+                    @click="processScan"
+                    :disabled="!scanCode || isScanning"
+                    class="bg-teal-700 hover:bg-teal-800 disabled:bg-teal-400 text-white px-5 py-2.5 rounded-r-lg text-sm font-bold transition whitespace-nowrap"
+                >
+                    <span v-if="isScanning">...</span>
+                    <span v-else>Check-in</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Tabel Guest List -->
         <div class="border rounded-lg overflow-hidden">
             <table class="w-full text-left">
                 <thead class="bg-gray-50 border-b">
@@ -35,7 +63,8 @@
                         <td class="p-3 text-sm text-gray-600">{{ guest.user.phone_number }}</td>
                         <td class="p-3 text-sm font-mono text-gray-500">{{ guest.transaction_code }}</td>
                         <td class="p-3 text-center">
-                            <span v-if="guest.is_attended" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">Hadir</span>
+                            <!-- Field attendance disesuaikan dengan status transaction -->
+                            <span v-if="guest.status === 'attended'" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">Hadir</span>
                             <span v-else class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">Belum Check-in</span>
                         </td>
                     </tr>
@@ -51,10 +80,15 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import axios from 'axios';
+import Swal from 'sweetalert2'; // Import notifikasi alert cantik
 
 const classes = ref([]);
 const selectedClass = ref('');
 const guests = ref([]);
+
+// Variabel baru untuk Scanner
+const scanCode = ref('');
+const isScanning = ref(false);
 
 onMounted(async () => {
     const res = await axios.get('/api/classes/active');
@@ -64,6 +98,7 @@ onMounted(async () => {
 const fetchGuests = async () => {
     if (!selectedClass.value) return;
     try {
+        // Asumsi API Anda sebelumnya memanggil relasi ini
         const res = await axios.get(`/api/admin/classes/${selectedClass.value}/guests`);
         guests.value = res.data.data;
     } catch (error) {
@@ -71,11 +106,51 @@ const fetchGuests = async () => {
     }
 };
 
+// Fungsi Proses Scan QR
+const processScan = async () => {
+    if (!scanCode.value) return;
+    isScanning.value = true;
+    
+    try {
+        const response = await axios.post('/api/admin/tickets/scan', {
+            transaction_code: scanCode.value.trim()
+        });
+
+        // Tampilkan Sukses
+        Swal.fire({
+            icon: 'success',
+            title: 'Check-in Berhasil!',
+            html: `Peserta: <b>${response.data.data.customer_name}</b><br>Kelas: ${response.data.data.class_name}`,
+            timer: 3000,
+            showConfirmButton: false
+        });
+
+        // Kosongkan input
+        scanCode.value = '';
+
+        // Refresh list tamu agar status "Hadir" langsung berubah (jika kelas tersebut yang sedang dibuka Admin)
+        if (selectedClass.value) {
+            fetchGuests();
+        }
+    } catch (error) {
+        // Tampilkan Error (Misal tiket sudah dipakai atau belum dibayar)
+        Swal.fire({
+            icon: 'error',
+            title: 'Gagal',
+            text: error.response?.data?.message || "Terjadi kesalahan sistem.",
+            confirmButtonColor: '#0f766e'
+        });
+    } finally {
+        isScanning.value = false;
+        // Fokuskan kembali ke input setelah notifikasi agar admin bisa langsung scan tiket berikutnya
+        setTimeout(() => document.getElementById('scanInput')?.focus(), 100);
+    }
+};
+
 const exportToExcel = () => {
     if (!selectedClass.value) return;
-    // Redirect langsung ke endpoint Laravel yang mengembalikan response header download file (maatwebsite/excel)
     window.location.href = `/api/admin/export/class/${selectedClass.value}`;
 };
 
-const formatDate = (date) => new Date(date).toLocaleDateString('id-ID', { month: 'short', day: 'numeric' });
+const formatDate = (date) => new Date(date).toLocaleDateString('id-ID', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
 </script>
