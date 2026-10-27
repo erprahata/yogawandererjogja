@@ -1,0 +1,6 @@
+@import "tailwindcss";
+@source "../**/*.vue";
+
+@theme {
+    --color-brand: #206F78;
+}
