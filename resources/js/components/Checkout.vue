@@ -75,10 +75,12 @@
                 <!-- Jika QRIS: -->
                 <div v-else class="bg-gray-50 border border-gray-200 rounded-xl p-4 text-center mb-6 flex flex-col items-center">
                     <p class="text-sm font-bold text-gray-800 mb-2">Scan QRIS Berikut</p>
-                    <!-- Placeholder QRIS. Nanti diganti dengan <qrcode-vue :value="dynamicQrisString" :size="200" level="M" /> -->
-                    <div class="w-48 h-48 bg-white border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center mb-4">
-                        <span class="text-xs text-gray-400">QRIS Rp {{ formatPrice(yogaClass.price) }}<br>(Menunggu String Klien)</span>
+
+                    <div class="w-48 h-48 bg-white border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center mb-4 p-2">
+                        <qrcode-vue v-if="transactionData?.dynamic_qris" :value="transactionData.dynamic_qris" :size="170" level="M" />
+                        <span v-else class="text-xs text-gray-400">Gagal memuat QRIS</span>
                     </div>
+
                     <div class="w-full text-sm flex justify-between border-t border-gray-200 pt-3">
                         <span>No. Transaksi:</span>
                         <span class="font-bold text-teal-700">{{ transactionData.transaction_code }}</span>
@@ -107,6 +109,7 @@
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 import axios from 'axios';
+import QrcodeVue from 'qrcode.vue';
 
 const props = defineProps({ yogaClass: { type: Object, required: true } });
 const emit = defineEmits(['close']);
